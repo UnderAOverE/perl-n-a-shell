@@ -10,8 +10,8 @@
 #
 
 # CA location:
-ca_certificates=CACertificates
-jar_location=lib
+ca_certificates=/apps/shane/SAT/security/CRT/CACertificates
+jar_location=/apps/shane/SAT/lib
 
 # Main.
 if [[ -f ${jar_location}/CustomKeytool.jar ]]; then
@@ -30,7 +30,7 @@ if [[ -f ${jar_location}/CustomKeytool.jar ]]; then
 					echo;echo "Error: ${ca_certificates} not found.";echo
 				fi
 				java -jar ${jar_location}/CustomKeytool.jar ${keystore_name} ${ca_certificates}
-				if [[ $? -eq 7 ]]; then
+				if [[ $? -eq 8 ]]; then
 					echo "	Enter the Key file(Base64) location: "
 					read key_file
 					echo "	Reading ${key_file}...";sleep 1;

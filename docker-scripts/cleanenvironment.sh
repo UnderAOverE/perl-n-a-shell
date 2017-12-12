@@ -10,7 +10,9 @@
 #
 
 # functions.
-function Echo { echo "`date +\"[%m/%d/%Y %H:%M:%S %Z]\"` $@" }
+function Echo { 
+	echo "`date +\"[%m/%d/%Y %H:%M:%S %Z]\"` $@" 
+}
 
 #
 # DANGER: Use this script with caution, recommended for development ONLY. #

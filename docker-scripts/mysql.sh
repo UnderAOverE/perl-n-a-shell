@@ -17,9 +17,9 @@
 # --env = environment property, MYSQL_ALLOW_EMPTY_PASSWORD=yes, sets no password.
 
 docker run \
-	--name shane-mysql \
+	--name r2d2c3p0-mysql \
 	--env MYSQL_ALLOW_EMPTY_PASSWORD=yes \
-	--volume /home/shane/dockerdata/mySQL:/var/lib/mysql \
+	--volume /home/r2d2c3p0/dockerdata/mySQL:/var/lib/mysql \
 	--publish 3306:3306 \
 	--detach mysql
 

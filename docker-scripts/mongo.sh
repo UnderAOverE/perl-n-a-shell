@@ -16,9 +16,9 @@
 # --detach = run in background.
 
 docker run \
-	--name shane-mongo \
+	--name r2d2c3p0-mongo \
 	--publish 27017:27017 \
-	--volume /home/shane/dockerdata/db:/data/db \
+	--volume /home/r2d2c3p0/dockerdata/db:/data/db \
 	--detach mongo
 
 #end_mongo.sh

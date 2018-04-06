@@ -15,7 +15,7 @@
 # --detach = run in background.
 
 docker run \
-	--name shane-tomcat \
+	--name r2d2c3p0-tomcat \
 	--publish 8080:8080 \
 	--detach tomcat
 

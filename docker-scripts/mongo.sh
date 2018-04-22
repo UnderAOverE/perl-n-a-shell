@@ -6,7 +6,7 @@
 # r2d2c3p0.
 # mongo.sh
 # mongo docker run command.
-# v1.0.0
+# v1.1.0 (4/21/2018)
 #
 
 # command arguments. want more? use: docker run --help
@@ -14,6 +14,7 @@
 # --volume = maps local filesystem.
 # --publish = maps the container port to the host.
 # --detach = run in background.
+# docker exec -it $(container_name) /bin/bash
 
 docker run \
 	--name shane-mongo \

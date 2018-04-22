@@ -22,5 +22,8 @@ docker run \
 	--volume /home/shane/dockerdata/mySQL:/var/lib/mysql \
 	--publish 3306:3306 \
 	--detach mysql
+	
+docker run -it -v /home/sradmin/mysql:/var/lib/mysql \
+	--name dock-sql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=admin -e MYSQL_DATABASE=dockbd centurylink/mysql
 
 #end_mysql.sh

@@ -10,8 +10,8 @@
 #
 
 # functions.
-function Echo { 
-	echo "`date +\"[%m/%d/%Y %H:%M:%S %Z]\"` $@" 
+function Echo {
+        echo "`date +\"[%m/%d/%Y %H:%M:%S %Z]\"` $@"
 }
 
 #
@@ -20,15 +20,21 @@ function Echo {
 
 # main.
 function Main {
-	Echo "stopping all the running containers."
-	docker stop $(docker ps -aq) 2>/dev/null
-	Echo "removing containers with status=created and status=exited."
-	docker rm $(docker ps -a -f status=exited -f status=created -q) 2>/dev/null
-	Echo "force remove all the containers."
-	docker rm -f $(docker ps -aq) 2>/dev/null
-	Echo "reclaim space, remove local volumes."
-	docker volume rm $(docker volume ls -f dangling=true -q) 2>/dev/null
-	docker volume prune -f 2>/dev/null
+        Echo "stopping all the running containers."
+        docker stop $(docker ps -aq) 2>/dev/null
+        Echo "removing containers with status=created and status=exited."
+        docker rm $(docker ps -a -f status=exited -f status=created -q) 2>/dev/null
+        Echo "force remove all the containers."
+        docker rm -f $(docker ps -aq) 2>/dev/null
+        Echo "reclaim space, remove local volumes."
+        docker volume rm $(docker volume ls -f dangling=true -q) 2>/dev/null
+        docker volume prune -f 2>/dev/null
+        Echo "force remove images."
+        docker images -f dangling=true | awk '{print $3}' | xargs docker rmi -f 2>/dev/null
+        docker images --all | awk '{print $3}' | xargs docker rmi -f 2>/dev/null
+        docker rmi $(docker images -a -q) 2>/dev/null
+        Echo "prune system...";sleep 2
+        docker system prune -a
 }
 
 Main; exit 0

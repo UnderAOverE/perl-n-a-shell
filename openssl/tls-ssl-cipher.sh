@@ -8,8 +8,8 @@ for protocol in -ssl2 -ssl3 -tls1 -tls1_1 -tls1_2; do
 		-ssl2) Protocol="SSLv2";;
 		-ssl3) Protocol="SSLv3";;
 		-tls1) Protocol="TLSv1.0";;
-	  -tls1_1) Protocol="TLSv1.1";;
-	  -tls1_2) Protocol="TLSv1.2";;
+	  	-tls1_1) Protocol="TLSv1.1";;
+	  	-tls1_2) Protocol="TLSv1.2";;
 		*) x=1;;
 	esac
 	for Cipher in `openssl ciphers | awk -F ":" '{ for (cph=1;cph<NF+1;cph++) if (length($cph) != 0) print $cph }'`; do

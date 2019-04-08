@@ -161,3 +161,8 @@ Decrypt files with rsautl
 ```sh
 openssl rsautl -decrypt -in encrypted.txt -out plaintext.txt -inkey privkey.pem
 ```
+
+
+```sh
+openssl rsa -in [file1.key] -out [file2.key]
+```

@@ -11,3 +11,21 @@ else
 	done
 	echo "${input_argument} backwards is: ${reversed}"
 fi
+
+---------------------------------------------------------------------------------------------------------
+
+
+#!/usr/bin/ksh
+
+while [[ $# -ne 0 ]]; do
+	input_argument=${1}
+	l_argument=${#input_argument}
+	final_string=""
+	while [[ ${l_argument} -ne 0 ]]; do
+		place_holder=$(echo ${input_argument} | cut -b ${l_argument})
+		l_argument=$((l_argument-=1))
+		final_string="${final_string}${place_holder}"
+	done
+	echo ${final_string}
+	shift;
+done

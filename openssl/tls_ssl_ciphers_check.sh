@@ -9,10 +9,7 @@
 #
 
 # variables
-protocol_ssl2=""
-protocol_ssl3=""
-protocol_tls10=""
-protocol_tls11=""
+protocol_ssl2="";protocol_ssl3="";protocol_tls10="";protocol_tls11=""
 protocol_tls12=""
 
 # function
@@ -30,20 +27,21 @@ function openssl_c {
 				*) pprotocol="NULL" ;;
 		esac
 		for ciphers_a in $(openssl ciphers 'ALL:eNULL' | tr ':' ' '); do
+			cp /dev/null /var/tmp/cert.txt
 			#openssl s_client \
 			#-connect ${server_name}:${server_port} \
 			#-cipher ${ciphers_a} -${protocol_version} < /dev/null > /dev/null 2>&1 \
 			#&& echo -e "   ${pprotocol}: ${ciphers_a}"
-			openssl s_client -connect ${server_name}:${server_port} 2>/dev/null </dev/null \
+			openssl s_client -connect ${server_name}:${server_port} 2>/dev/null \
 			| sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' 1>/var/tmp/cert.txt 2>/dev/null;
-			if [[ -s /var/tmp/cert.txt ]]; then
-			  #openssl x509 -in /var/tmp/cert.txt -noout -text \
-			  #| egrep "Signature Algorithm|Issuer|Not Before|Not After|Subject\:" \
-			  #| grep -v "CA Issuers" \
-			  #| head -5; \
-			  #openssl x509 -in /var/tmp/cert.txt -noout -serial  
-			  echo "   ${pprotocol}: ${ciphers_a}"
+			openssl x509 -in /var/tmp/cert.txt -noout -serial 2>/dev/null 1>/dev/null
+			if [[ $? -eq 0 ]]; then
+				echo "   ${pprotocol}: ${ciphers_a}"
 			fi
+			#openssl x509 -in /var/tmp/cert.txt -noout -text \
+			#| egrep "Signature Algorithm|Issuer|Not Before|Not After|Subject\:" \
+			#| grep -v "CA Issuers" \
+			#| head -5 2>/dev/null 1>/dev/null;
 		done
 	done
 }

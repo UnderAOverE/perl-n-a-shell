@@ -24,8 +24,7 @@ function openssl_c {
 		for ciphers_a in $(openssl ciphers 'ALL:eNULL' | tr ':' ' '); do
 			openssl s_client \
 			-connect ${server_name}:${server_port} \
-			-cipher ${ciphers_a} -${protocol_version} < /dev/null > /dev/null 2>&1 \
-			&& echo -e "   ${pprotocol}:\t${ciphers_a}"
+			-cipher ${ciphers_a} -${protocol_version} < /dev/null > /dev/null 2>&1 && echo -e "   ${pprotocol}:\t${ciphers_a}"
 		done
 	done
 }

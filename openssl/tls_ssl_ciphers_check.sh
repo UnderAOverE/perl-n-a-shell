@@ -45,7 +45,7 @@ print_usage() {
 }
 
 Echo() {
-	echo "${@}" | tee -a tls_ssl_ciphers_check.log
+	echo "${@}" >> tls_ssl_ciphers_check.log
 }
 
 # main.
@@ -106,6 +106,8 @@ else
 			esac
 	done
 fi
+# tempo 2o
+mv tls_ssl_ciphers_check.log tls_ssl_ciphers_check.log.$(date +"%m%d%Y_%H%M%S")
 
 for connection_string in $(cat intranet.txt); do
 	connection_name=$(echo ${connection_string} | awk -F "," '{print $1}')

@@ -116,59 +116,74 @@ for connection_string in $(cat intranet.txt); do
 			#for ciphers_a in $(openssl ciphers 'ALL:eNULL' | tr ':' ' '); do
 			#done
 			if [[ ${protocol_tls12} -eq 1 ]]; then
+				tls12_check=0
 				for Cipher in $(openssl ciphers | awk -F ":" '{ for (cph=1;cph<NF+1;cph++) if (length($cph) != 0) print $cph }'); do
 					openssl s_client -connect ${connection_host}:${connection_port} -tls1_2 -cipher "${Cipher}" -msg 2>/dev/null | grep ChangeCipherSpec >/dev/null 2>&1
 					if [[ $? -eq 0 ]]; then
 						echo "  ${connection_host}[:${connection_port}] using [TLSv1.2] with ${Cipher} --> ${BLINK}${GREEN}Passed${NORMAL}."
+						tls12_check=1
 					else
 						x=0;
 						#echo "  ${connection_host}[:${connection_port}] using [TLSv1.2] with ${Cipher} --> ${BLINK}${RED}Failed${NORMAL}."
 					fi
 				done
+				[[ ${tls12_check} -eq 0 ]] && { echo "  ${connection_host}[:${connection_port}] using [TLSv1.2] --> ${BLINK}${YELLOW}Not Allowed${NORMAL}." ; }
 			fi
 			if [[ ${protocol_tls11} -eq 1 ]]; then
+				tls11_check=0
 				for Cipher in $(openssl ciphers | awk -F ":" '{ for (cph=1;cph<NF+1;cph++) if (length($cph) != 0) print $cph }'); do
 					openssl s_client -connect ${connection_host}:${connection_port} -tls1_1 -cipher "${Cipher}" -msg 2>/dev/null | grep ChangeCipherSpec >/dev/null 2>&1
 					if [[ $? -eq 0 ]]; then
 						echo "  ${connection_host}[:${connection_port}] using [TLSv1.1] with ${Cipher} --> ${BLINK}${GREEN}Passed${NORMAL}."
+						tls11_check=1
 					else
 						x=0;
 						#echo "  ${connection_host}[:${connection_port}] using [TLSv1.1] with ${Cipher} --> ${BLINK}${RED}Failed${NORMAL}."
 					fi
 				done
+				[[ ${tls11_check} -eq 0 ]] && { echo "  ${connection_host}[:${connection_port}] using [TLSv1.1] --> ${BLINK}${YELLOW}Not Allowed${NORMAL}." ; }
 			fi
 			if [[ ${protocol_tls10} -eq 1 ]]; then
+				tls10_check=0
 				for Cipher in $(openssl ciphers | awk -F ":" '{ for (cph=1;cph<NF+1;cph++) if (length($cph) != 0) print $cph }'); do
 					openssl s_client -connect ${connection_host}:${connection_port} -tls1 -cipher "${Cipher}" -msg 2>/dev/null | grep ChangeCipherSpec >/dev/null 2>&1
 					if [[ $? -eq 0 ]]; then
 						echo "  ${connection_host}[:${connection_port}] using [TLSv1.0] with ${Cipher} --> ${BLINK}${GREEN}Passed${NORMAL}."
+						tls10_check=1
 					else
 						x=0;
 						#echo "  ${connection_host}[:${connection_port}] using [TLSv1.0] with ${Cipher} --> ${BLINK}${RED}Failed${NORMAL}."
 					fi
 				done
+				[[ ${tls10_check} -eq 0 ]] && { echo "  ${connection_host}[:${connection_port}] using [TLSv1.0] --> ${BLINK}${YELLOW}Not Allowed${NORMAL}." ; }
 			fi
 			if [[ ${protocol_ssl3} -eq 1 ]]; then
+				ssl3_check=0
 				for Cipher in $(openssl ciphers | awk -F ":" '{ for (cph=1;cph<NF+1;cph++) if (length($cph) != 0) print $cph }'); do
 					openssl s_client -connect ${connection_host}:${connection_port} -ssl3 -cipher "${Cipher}" -msg 2>/dev/null | grep ChangeCipherSpec >/dev/null 2>&1
 					if [[ $? -eq 0 ]]; then
 						echo "  ${connection_host}[:${connection_port}] using [SSLv3] with ${Cipher} --> ${BLINK}${GREEN}Passed${NORMAL}."
+						ssl3_check=1
 					else
 						x=0;
 						#echo "  ${connection_host}[:${connection_port}] using [SSLv3] with ${Cipher} --> ${BLINK}${RED}Failed${NORMAL}."
 					fi
 				done
+				[[ ${ssl3_check} -eq 0 ]] && { echo "  ${connection_host}[:${connection_port}] using [SSLv3] --> ${BLINK}${YELLOW}Not Allowed${NORMAL}." ; }
 			fi
 			if [[ ${protocol_ssl2} -eq 1 ]]; then
+				ssl2_check=0
 				for Cipher in $(openssl ciphers | awk -F ":" '{ for (cph=1;cph<NF+1;cph++) if (length($cph) != 0) print $cph }'); do
 					openssl s_client -connect ${connection_host}:${connection_port} -ssl2 -cipher "${Cipher}" -msg 2>/dev/null | grep ChangeCipherSpec >/dev/null 2>&1
 					if [[ $? -eq 0 ]]; then
 						echo "  ${connection_host}[:${connection_port}] using [SSLv2] with ${Cipher} --> ${BLINK}${GREEN}Passed${NORMAL}."
+						ssl2_check=1
 					else
 						x=0;
 						#echo "  ${connection_host}[:${connection_port}] using [SSLv2] with ${Cipher} --> ${BLINK}${RED}Failed${NORMAL}."
 					fi
 				done
+				[[ ${ssl2_check} -eq 0 ]] && { echo "  ${connection_host}[:${connection_port}] using [SSLv2] --> ${BLINK}${YELLOW}Not Allowed${NORMAL}." ; }
 			fi
 		else
 			echo "  ${connection_host}:${connection_port} ${BLINK}${RED}Refused$${NORMAL}."

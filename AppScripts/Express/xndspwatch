@@ -1,0 +1,450 @@
+#!/usr/bin/perl 
+
+# $Id: xndspwatch,v 1.23 2004/04/21 21:01:45 megglest Exp $
+# $Log: xndspwatch,v $
+# Revision 1.23  2004/04/21 21:01:45  megglest
+# if the second WAS server stop fails, issue a WAS kill
+#
+# Revision 1.22  2004/04/01 16:06:49  megglest
+# removed parameter ntfiles, modified script to push arbitrary number of nt files
+#
+# Revision 1.21  2004/03/31 20:42:01  megglest
+# due to a problem on 30 Mar 04 where the app did not install fully
+# changed in sub process {} the actuall install to try to install
+# the wasfiles *.ear file for wasinstallcount times
+#
+# Revision 1.20  2004/03/31 20:33:21  megglest
+# modified the file push to the nodes to handle an arbitrary number of files
+# removed the wasextrafiles parameter
+#
+# Revision 1.19  2004/03/31 20:23:10  megglest
+# moved the nt push portion above the WAS push portion
+#
+# Revision 1.18  2004/03/29 04:07:50  megglest
+# forced binary mode for transfers to NT
+#
+# Revision 1.17  2004/03/27 03:35:35  megglest
+# more verbage
+#
+# Revision 1.16  2004/03/26 13:09:28  megglest
+# changes to handle errors more gracefully
+#
+# Revision 1.15  2004/03/24 14:35:00  megglest
+# made error handling more graceful
+#
+# Revision 1.14  2004/03/18 14:09:33  megglest
+# added directory listings
+#
+# Revision 1.13  2004/03/11 21:08:58  megglest
+# minor changes
+#
+# Revision 1.12  2004/03/01 15:47:54  megglest
+# minor changes
+#
+# Revision 1.11  2004/02/25 21:11:52  megglest
+# the extra timeout was on the wrong line
+#
+# Revision 1.10  2004/02/24 05:03:09  megglest
+# testing changes
+#
+# Revision 1.9  2004/02/24 04:13:08  megglest
+# change from testing
+#
+# Revision 1.8  2004/02/19 22:45:11  megglest
+# minor documentation and timeout changes; also copying jar files to /usr/WebSphere/DeploymentManager/classes on txndsp01
+#
+# Revision 1.7  2004/02/12 13:35:55  megglest
+# minor changes from testing in production
+#
+# Revision 1.4  2004/01/29 20:11:55  megglest
+# about to change from ftp/telnet to scp/ssh
+#
+# Revision 1.3  2004/01/28 21:52:40  megglest
+# changes
+#
+# Revision 1.2  2004/01/28 19:48:50  megglest
+# changes
+#
+# Revision 1.1  2004/01/15 23:53:06  megglest
+# still working
+#
+
+# watch the respository directory for the mainframe start flag
+# create the daily staging keep directory
+# if this exists then dont run /tmp/xndspwatch.lock
+# this DIRECTORY needs to be there if run by hand /tmp/expressupd
+# you MUST run this script as xadm for the push to work
+# push the necessary files to NT and place the mainframe start flag last
+# ftp the necessary files to each indicated node
+# connect to the node
+# stop the application on the node
+# if the stop fails, kill the java
+# install the application
+# start the node
+# loop to the next node
+# send the log back to the mainframe
+
+use Getopt::Std;
+use Net::FTP;
+use strict;
+
+# global variables
+my %cfg;
+my $dir;
+my $file;
+
+# mainframe log
+sub mflog {
+	my $lt = localtime() . ' ';
+	print LOG '  ', $lt, shift, "\n";
+}
+
+# append to a closed mainframen log
+sub mflogappend {
+	my $lt = localtime() . ' ';
+	open(LOG, ">> $cfg{'log'}");
+	print LOG '  ', $lt, shift, "\n\n";
+	close LOG;
+}
+
+# write to syslog
+sub logger {
+	my $msg = shift;
+	system 'logger', '-t', 'xndspwatch', $msg;
+}
+
+# send log file to mainframe
+sub mfsend {
+	close LOG;
+
+	# email log to users
+	&mflogappend("$cfg{'mailcmd'} -s '$cfg{'mailtitle'}'  $cfg{'mailto'} < $cfg{'log'}");
+	foreach my $addr (split(' ', $cfg{'mailto'})) {
+		system("$cfg{'mailcmd'} -s '$cfg{'mailtitle'}'  $addr < $cfg{'log'}");
+	}
+}
+
+# execute some command and return its output
+my $exception = 0;
+my $exceptionpattern = 'Exception';
+sub execute {
+	my $cmd = shift;
+	my $timeout = shift || $cfg{'timeout'};
+	local $SIG{'__DIE__'} = 'DEFAULT';
+	local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required
+	my $pid;
+
+	mflog('executing:');
+	mflog($cmd);
+	mflog("timeout: $timeout");
+
+	$exception = 0;
+
+	eval {
+		unless($pid = open(EXEC, "$cmd 2>&1 |")) {
+			mflog "unable to execute '$cmd': $!";
+			return;
+		}
+		alarm $timeout;
+		while(<EXEC>) {
+			chomp;
+			mflog($_);
+			$exception = 1 if /$exceptionpattern/;
+			alarm $timeout;
+		}
+		alarm 0;
+	};
+	kill(9, $pid);
+	close EXEC;
+	if ($@) {
+		if($@ eq "alarm\n") {
+			mflog("command timed out");
+			return 1;
+		} else {
+			mflog("command failed");
+			return 2;
+		}
+	}
+	mflog("command ok");
+	return 0;
+}
+
+# execute a remote command
+sub ssh {
+	my $user = shift;
+	my $host = shift;
+	my $cmd = shift;
+	my $to = shift;
+	return execute("ssh -n ${user}\@${host} '$cmd'", $to);
+}
+
+# send a file to a remote host
+sub scp {
+	my $host = shift;
+	my $user = shift;
+	my $lfile = shift;
+	my $rfile = shift || $lfile;
+	return execute("scp $lfile ${user}\@${host}:$rfile");
+}
+
+our $opt_d;		# debug
+our $opt_v;		# verbose
+our $opt_h;		# help
+our $opt_n;		# noexec
+our $opt_f;		# configuration file
+our $opt_c;		# create simple config file
+
+$opt_d = $opt_v = $opt_n = 0;
+
+getopts('dvnhf:c');
+
+# help needed?
+if($opt_h) {
+	print "usage: $0 [-dvnh]-u USER[-f file-of-servers][-s SCRIPT][-c COMMAND]\n";
+	print "\t-d      - debug\n";
+	print "\t-v      - verbose\n";
+	print "\t-n      - no exec\n";
+	print "\t-h      - this message\n";
+	print "\t-f FILE - file containing a list of servers to contact\n";
+	print "\t-c      - create a simple config file\n";
+	exit 0;
+}
+
+# default configuration file if not specified
+$opt_f = '/home/xadm/xndspwatch.cfg' unless $opt_f;
+
+# create simple config file
+if($opt_c) {
+	open(CFG, "> $opt_f") or die "$0: unable to create '$opt_f': $!";
+	print CFG '# $I' . 'd$' . "\n";
+	print CFG '# $L' . 'og$' . "\n\n";
+	print CFG "home = \n";
+	print CFG "log = \n";
+	print CFG "lock = \n";
+	print CFG "nodes = \n";
+	print CFG "sleep = 60\n";
+	print CFG "timeout = 30\n";
+	print CFG "staging = \n";
+	print CFG "prompt = \n";
+	print CFG "ntflag = \n";
+	print CFG "nthost = \n";
+	print CFG "ntpath = \n";
+	print CFG "ntuser = \n";
+	print CFG "ntpass = \n";
+	print CFG "ntpush = \n";
+	print CFG "wasuser = \n";
+	print CFG "wasstart = \n";
+	print CFG "wasstop = \n";
+	print CFG "waskill = \n";
+	print CFG "wasinstall = \n";
+	print CFG "mfflag = \n";
+	print CFG "pushtype = \n";
+	print CFG "nttimeout = \n";
+	close CFG;
+	exit 0;
+}
+
+sub process {
+	# open the default logfile
+	$cfg{'log'} = 'xndspwatch.err';
+	open(LOG, "> $cfg{'log'}") or die "unable to write to file '$cfg{'log'}': $!";
+	select(LOG);
+	$| = 1;
+	select(STDOUT);
+
+	# read the config file
+	unless(open(CFG, "< $opt_f")) {
+		mflog "unable to read '$opt_f': $!";
+		return;
+	}
+	while(<CFG>) {
+		next if /^\s*$/o;
+		next if /^#/o;
+		chomp;
+		my @a = split(/\s*=\s*/o);
+		my $key = shift(@a);
+		$cfg{$key} = join('=', @a);
+	}
+	close CFG;
+
+	# validate the configuration against the defaults
+	my @a = localtime;
+	my $today = sprintf("%04d%02d%02d%02d%02d",
+				$a[5] + 1900, $a[4] + 1, $a[3], $a[2], $a[1]);
+	$cfg{'home'} = $ENV{'HOME'} unless $cfg{'home'};
+	$cfg{'log'} = "$cfg{'home'}/log.$today";
+	#$cfg{'log'} = eval { $cfg{'log'}; };
+
+	# re-open the log
+	if($cfg{'log'} ne 'xndspwatch.err') {
+		close LOG;
+		open(LOG, "> $cfg{'log'}") or die "unable to write to file '$cfg{'log'}': $!";
+		select(LOG);
+		$| = 1;
+		select(STDOUT);
+	}
+
+	unless($cfg{'nodes'}) {
+		mflog("$0: no nodes defined: aborting");
+		return;
+	}
+	$cfg{'mfflag'} = '/tmp/expressupd' unless $cfg{'mfflag'};
+	$cfg{'sleep'} = 60 unless $cfg{'sleep'} > 0;
+	$cfg{'staging'} = "$ENV{'HOME'}/staging" unless $cfg{'staging'};
+	$cfg{'timeout'} = 30 unless $cfg{'timeout'} > 0;
+	$cfg{'nttimeout'} = 3600 unless $cfg{'nttimeout'} > 0;
+	$cfg{'lock'} = '/tmp/xndspwatch.lock' unless $cfg{'lock'};
+	$cfg{'pushtype'} = 'standard' unless $cfg{'pushtype'};
+	$cfg{'ntpush'} = 'yes' unless $cfg{'ntpush'};
+	$ENV{'PATH'} .= ':/usr/bin';
+	$cfg{'wasinstallcount'} = 1 unless $cfg{'wasinstallcount'};
+
+	# check to make sure only a single instance of the script is running
+	my @stat = stat($cfg{'lock'});
+	if(@stat) {
+		if((time - $stat[9]) < 3600) {
+			logger('watcher already running: exiting');
+			exit 0;
+		} else {
+			unlink $cfg{'lock'};
+		}
+	}
+
+	# create lock file
+	unless(open(LOCK, "> $cfg{'lock'}")) {
+		mflog("unable to create lock file '$cfg{'lock'}': $!");
+		return;
+	}
+	print LOCK "process $$ started ", scalar(localtime), "\n";
+	close LOCK;
+
+	# watch the respository directory for the mainframe start flag
+	my $sleepcount = 0;
+	while($sleepcount < $cfg{'sleepcount'}) {
+		last if -d $cfg{'mfflag'};
+		sleep $cfg{'sleep'};
+		$sleepcount++;
+	}
+	if($sleepcount >= $cfg{'sleepcount'}) {
+		mflog("sleepcount $cfg{'sleepcount'} exceeded: continuing");
+		exit 0;		# mikee 041004 no sending of email
+	} else {
+		mflog('received mainframe flag ' . $cfg{'mfflag'});
+	}
+
+	# are there files to install?
+	unless(opendir(DIR, $cfg{'staging'})) {
+		mflog("unable to read directory '$cfg{'staging'}': $!");
+		return;
+	}
+	my @files = grep(!/^\./o, readdir(DIR));
+	closedir DIR;
+
+	# are there files to install/transfer?
+	if(scalar(@files) == 0) {
+		mflog('no files found to install: exiting');
+		mfsend;
+		unlink $cfg{'lock'};
+		exit 0;
+	}
+	mflog('files to install: ' . join(' ', @files));
+
+	# create the daily staging keep directory
+	$dir = "$cfg{'home'}/$today";
+	unless(mkdir $dir) {
+		mflog("unable to create directory '$dir': $!");
+		return;
+	}
+
+	# move the files from the staging to the daily storage place
+	mflog("moving installation files from $cfg{'staging'} to '$dir'");
+	execute("mv $cfg{'staging'}/* $dir");
+
+
+	# Parse each indicated node
+	my @nodes = split(' ', $cfg{'nodes'});
+	my $njars = 0;
+
+	# are there *.ear files to install?
+	opendir(EARDIR, $dir);
+	my $nears = scalar(grep(/\.ear$/io, readdir(EARDIR)));
+	closedir EARDIR;
+
+	# for the actual installation:
+	# - stop the node (standard push only)
+	# - kill the node if necessary (standard push only)
+	# - start the node (standard push only)
+	# - start the install (standard push only)
+	# - install the app
+	# - stop/start the nodes 
+
+	my $ok;
+	# if there are *.ear files to install or if *.jar files have been installed
+	if($njars or $nears) {
+             if ( $cfg{'pushtype'} eq 'standard' ) {
+		foreach my $node (@nodes) {
+			mflog("$node Express stopping");
+			$ok = ssh($cfg{'wasuser'}, $node, $cfg{'wasstop'}, $cfg{'timeout'});
+			if($ok) {
+				mflog("$node Express killing");
+				$ok = ssh($cfg{'wasuser'}, $node, $cfg{'waskill'}, $cfg{'timeout'});
+			}
+			mflog("$node Express starting");
+			$ok = ssh($cfg{'wasuser'}, $node, $cfg{'wasstart'}, $cfg{'timeout'});
+			mflog("$node Express initial stop/start complete");
+	    	}
+             }
+
+		# now install the new application
+		mflog("moving ear file");
+		execute("ls -l $dir");
+		execute("cp $dir/*.ear $cfg{'wasfilepath'}");
+		mflog("starting installation");
+		my $cnt = $cfg{'wasinstallcount'};
+		while($cnt--) {
+			mflog('install attempt ' . ($cfg{'wasinstallcount'} - $cnt));
+			$ok = execute($cfg{'wasinstall'}, $cfg{'timeout'} * 6);
+			last unless $exception;
+		}
+		mflog("Express installation complete");
+
+		# then the final start/stop
+		foreach my $node (@nodes) {
+			mflog("$node Express stopping");
+			$ok = ssh($cfg{'wasuser'}, $node, $cfg{'wasstop'}, $cfg{'timeout'});
+			if($ok) {
+				mflog("$node Express killing");
+				$ok = ssh($cfg{'wasuser'}, $node, $cfg{'waskill'}, $cfg{'timeout'});
+			}
+			mflog("$node Express starting");
+			$ok = ssh($cfg{'wasuser'}, $node, $cfg{'wasstart'}, $cfg{'timeout'});
+			mflog("$node Express second stop/start complete");
+		}
+	}
+
+	# Initiate the remote Intel (nt) push batch file via ssh
+        if ( $cfg{'ntpush'} eq 'yes' ) {
+	   mflog("initiating the nt push via ssh on $cfg{'nthost'} as $cfg{'ntuser'}");
+           my $ok = ssh($cfg{'wasuser'}, $cfg{'nthost'}, $cfg{'ntpath'}, $cfg{'nttimeout'});
+	   mflog('nt push complete');
+        }
+        else {
+	   mflog("As instructed the nt push will NOT be executed");
+        }
+
+        execute("rm -f $cfg{'wasfilepath'}/*.ear");
+	mflog('Express update on WAS complete');
+}
+
+&process;
+&mfsend;
+
+END {
+	close LOG;
+	rename $cfg{'log'}, "$dir/$cfg{'log'}";
+	rmdir $cfg{'mfflag'};
+	unlink $cfg{'lock'};
+}
+
+__END__
+

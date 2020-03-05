@@ -1,0 +1,13 @@
+[Unit]
+Description=JBoss EAP Service for Express Application
+After=network.service
+
+[Service]
+Type=oneshot
+ExecStart=/tti/bin/eap_service.sh start
+ExecStop=/tti/bin/eap_service.sh stop
+User=root
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target

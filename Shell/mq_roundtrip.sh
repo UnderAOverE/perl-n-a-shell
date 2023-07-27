@@ -15,13 +15,13 @@ function put_message() {
     local queue_name="$1"
     local message="$2"
 
-    amqsput "$queue_name" "$message"
+    mqput "$queue_name" "$message"
 }
 
 function get_message() {
     local queue_name="$1"
 
-    amqsget "$queue_name"
+    mqget "$queue_name"
 }
 
 function main() {

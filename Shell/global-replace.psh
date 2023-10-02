@@ -1,0 +1,5 @@
+Get-ChildItem -Path 'C:\path\to\folder' -File | ForEach-Object {
+    (Get-Content $_.FullName) | ForEach-Object {
+        $_ -replace 'oldstring', 'newstring'
+    } | Set-Content $_.FullName
+}
